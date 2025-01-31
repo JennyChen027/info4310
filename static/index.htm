@@ -1,0 +1,48 @@
+<html>
+<head>
+    <!-- Importing d3 library -->
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://d3js.org/topojson.v3.min.js"></script>
+    
+    <!-- Need styles if I do graphs -->
+    <style>
+        .gridlines line {
+          stroke: #bbb;
+        }
+        
+        .gridlines .domain {
+          stroke: none;
+        }
+        
+        .state {
+          fill: lightgrey;
+        }
+        .outline {
+          stroke: black;
+          stroke-width: 1px;
+          fill: none;
+        }
+        .graticule {
+          fill: none;
+          stroke: #777;
+        }
+    </style>
+</head>
+<body>
+    <!-- Map of San Fran-->
+    <svg id="choropleth" height="400" width="600" style="background: #445; margin-top:50px">
+
+    </svg>
+
+    <script id="visual1">
+        const choropleth = d3.select("#choropleth");
+        const mapWidth = choropleth.attr("width");
+        const mapHeight = choropleth.attr("height");
+        const mapMargin = { top: 20, right: 20, bottom: 20, left: 20};
+        const mapAreaWidth = mapWidth - mapMargin.left - mapMargin.right;
+        const mapAreaHeight = mapHeight - mapMargin.top - mapMargin.bottom;
+        const map = choropleth.append("g")
+                    .attr("transform","translate("+mapMargin.left+","+mapMargin.top+")");
+    </script>
+</body>
+</html>
