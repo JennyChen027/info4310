@@ -14,23 +14,22 @@
           stroke: none;
         }
         
-        .state {
+        .neighborhood {
           fill: lightgrey;
+          stroke: white;
+          stroke-width: 1px;
         }
+
         .outline {
-          stroke: black;
+          stroke: #fff;
           stroke-width: 1px;
           fill: none;
-        }
-        .graticule {
-          fill: none;
-          stroke: #777;
         }
     </style>
 </head>
 <body>
     <!-- Map of San Fran-->
-    <svg id="choropleth" height="400" width="600" style="background: #445; margin-top:50px">
+    <svg id="choropleth" height="700" width="700" style="background: rgb(255, 255, 255); margin-top:0px">
 
     </svg>
 
@@ -43,6 +42,87 @@
         const mapAreaHeight = mapHeight - mapMargin.top - mapMargin.bottom;
         const map = choropleth.append("g")
                     .attr("transform","translate("+mapMargin.left+","+mapMargin.top+")");
+        //let annotations = choropleth.append("g").attr("id", "annotations")
+
+        const requestChoropleth = async function () {
+          let SF = await d3.json("SF-Neighborhoods.geo.json");
+
+          var counties = topojson.feature(SF, SF.objects.SFNeighborhoods);    
+          // var countiesMesh = topojson.mesh(SF, SF.objects.SFNeighborhoods);   
+          var projection = d3.geoMercator().fitSize([mapAreaWidth, mapAreaHeight], counties); 
+          var path = d3.geoPath().projection(projection);  
+
+          map.selectAll("path.neighborhood").data(counties.features)
+            .join("path")
+            .attr("class", "neighborhood")
+            .attr("d", path);
+
+          const trees = await d3.csv("Street_Tree_List-2022-01-30_FILTERED.csv")
+          
+          trees.forEach( d => {
+            d.Position = projection( [d.Longitude, d.Latitude] );
+            d.DBH = Number(d.DBH);
+          });
+
+          // map of specie counts
+          const speciesCounts = {};
+          trees.forEach(d => {
+              speciesCounts[d.qSpecies] = (speciesCounts[d.qSpecies] || 0) + 1;
+          });
+
+          // too many data points do top 4
+          const sortedSpecies = Object.entries(speciesCounts)
+              .sort((a, b) => b[1] - a[1]) 
+              .slice(0, 4) 
+              .map(d => d[0]); 
+
+          const filteredTrees = trees.filter(d => sortedSpecies.includes(d.qSpecies)); 
+
+          const regScale = d3.scaleOrdinal(d3.schemeCategory10)
+                        .domain(sortedSpecies);
+
+          const diameterExtent = d3.extent(trees, d => d.DBH);
+          const diameterScale = d3.scaleLinear().domain(diameterExtent)
+                                                .range([1, 25]);           
+          
+                                                map.selectAll("circle").data(filteredTrees)
+            .join("circle")
+            .attr("r", d => diameterScale(d.DBH))
+            .attr("fill", d => regScale(d.qSpecies))
+            .attr("opacity", 0.4)
+            .attr("cx", d => d.Position[0])
+            .attr("cy", d => d.Position[1]);
+
+            const legend = d3.select("body")
+                .append("svg")
+                .attr("width", 500)
+                .attr("height", sortedSpecies.length * 30)
+                .attr("id", "legend")
+                .style("position", "absolute")
+                .style("left", "720px")
+                .style("top", "50px");
+
+            const legendGroup = legend.selectAll(".legend-item")
+                .data(sortedSpecies)
+                .join("g")
+                .attr("class", "legend-item")
+                .attr("transform", (d, i) => `translate(10, ${i * 30})`);
+
+            // Add color squares
+            legendGroup.append("rect")
+                .attr("width", 20)
+                .attr("height", 20)
+                .attr("fill", d => regScale(d));
+
+            // Add species labels
+            legendGroup.append("text")
+                .attr("x", 30)
+                .attr("y", 15)
+                .text(d => d)
+                .style("font-size", "14px")
+                .style("alignment-baseline", "middle");
+        }
+        requestChoropleth();
     </script>
 </body>
 </html>
