@@ -29,11 +29,42 @@
 </head>
 <body>
     <!-- Map of San Fran-->
+    <div>
+      <h1>What are the most popular trees in San Francisco?</h1>
+      <h2>Top 4 Trees in San Francisco</h2>
+    </div>  
     <svg id="choropleth" height="700" width="700" style="background: rgb(255, 255, 255); margin-top:0px">
 
     </svg>
 
+    <svg id="barchart" height="500" width="500" style="margin-top: 50px;"></svg>
+    <div>
+      <p style="font-size: 16px; color: #444; padding: 15px; border-left: 5px solid #4a90e2; width: 80%;">
+        Based on the visualization, the top four most common tree species in San Francisco are 
+        <strong>Platanus x hispanica (London Plane), Metrosideros excelsa (New Zealand Xmas Tree), Lophostemon confertus (Brisbane Box),</strong> 
+        and <strong>Pittosporum undulatum (Victorian Box).</strong> The London Plane appears to be the most prevalent, with a significantly higher count than the others. 
+    
+        A notable observation is that certain areas have a dense concentration of 
+        London Plane trees, which are commonly used for urban environments due to their resilience. The distribution of other species appears more scattered across neighborhoods, 
+        indicating diverse planting strategies throughout the city.</p>
+    </div>
+    <div id="visual2">
+      <h2>Private vs Public Maintenance of Trees in San Francisco</h2>
+      <svg id="private" height="700" width="700" style="background: rgb(255, 255, 255); margin-top:0px"></svg>
+      <svg id="public" height="700" width="700" style="background: rgb(255, 255, 255); margin-top:0px"></svg>
+    </div>
+    <div>
+      <p style="font-size: 16px; color: #444; padding: 15px; border-left: 5px solid #4a90e2; width: 80%;">
+        The visualization compares privately maintained and Department of Public Works (DPW) maintained trees in San Francisco. 
+        Privately maintained trees (left) are more evenly distributed across neighborhoods, with notable concentrations along <strong>Sunset Boulevard, California Street, and Embarcadero</strong>. 
+        These areas have a diverse mix of species, suggesting varied planting choices by property owners. In contrast, DPW-maintained trees (right) are heavily clustered along <strong>Market Street</strong> 
+        and <strong>major public spaces</strong>, reflecting a strategic approach to urban canopy management. 
+        The dominance of <strong>London Plane trees along Market Street and Embarcadero</strong> highlights the city's preference for resilient, large-canopy trees in high-traffic areas. 
+        Meanwhile, Sunset Boulevard appears in both maps, indicating a mix of public and private maintenance along this street.</p>
+    </div>
     <script id="visual1">
+        /////////////////////
+        // start of map stuff 
         const choropleth = d3.select("#choropleth");
         const mapWidth = choropleth.attr("width");
         const mapHeight = choropleth.attr("height");
@@ -43,6 +74,14 @@
         const map = choropleth.append("g")
                     .attr("transform","translate("+mapMargin.left+","+mapMargin.top+")");
         //let annotations = choropleth.append("g").attr("id", "annotations")
+
+        const private = d3.select("#private");
+        const privatemap = private.append("g")
+                    .attr("transform","translate("+mapMargin.left+","+mapMargin.top+")");
+
+        const public = d3.select("#public");
+        const publicmap = public.append("g")
+                    .attr("transform","translate("+mapMargin.left+","+mapMargin.top+")");
 
         const requestChoropleth = async function () {
           let SF = await d3.json("SF-Neighborhoods.geo.json");
@@ -85,44 +124,207 @@
           const diameterScale = d3.scaleLinear().domain(diameterExtent)
                                                 .range([1, 25]);           
           
-                                                map.selectAll("circle").data(filteredTrees)
+          map.selectAll("circle").data(filteredTrees)
             .join("circle")
             .attr("r", d => diameterScale(d.DBH))
             .attr("fill", d => regScale(d.qSpecies))
             .attr("opacity", 0.4)
             .attr("cx", d => d.Position[0])
             .attr("cy", d => d.Position[1]);
+          
+          //////////////////////
+          // start of private qCaretaker
+          privatemap.selectAll("path.neighborhood").data(counties.features)
+            .join("path")
+            .attr("class", "neighborhood")
+            .attr("d", path);
+          
+          const privateTrees = filteredTrees.filter(d => d.qCaretaker == "Private");
+          privatemap.selectAll("circle").data(privateTrees)
+            .join("circle")
+            .attr("r", d => diameterScale(d.DBH))
+            .attr("fill", d => regScale(d.qSpecies))
+            .attr("opacity", 0.4)
+            .attr("cx", d => d.Position[0])
+            .attr("cy", d => d.Position[1]);
+          
+          privatemap.append("text")
+            .attr("x", mapAreaWidth / 2)  
+            .attr("y", mapAreaHeight / 10) 
+            .attr("text-anchor", "middle") 
+            .attr("font-size", "18px")
+            .attr("font-weight", "bold")
+            .attr("fill", "black")
+            .text("Privately Maintained");
 
-            const legend = d3.select("body")
-                .append("svg")
-                .attr("width", 500)
-                .attr("height", sortedSpecies.length * 30)
-                .attr("id", "legend")
-                .style("position", "absolute")
-                .style("left", "720px")
-                .style("top", "50px");
+          const privateStreet = [
+            { name: "Embarcadero", coords: [-122.3937, 37.7955] },
+            { name: "Sunset Boulevard", coords: [-122.4955, 37.7599] },
+            { name: "California Street", coords: [-122.4194, 37.7918] }
+          ];
 
-            const legendGroup = legend.selectAll(".legend-item")
-                .data(sortedSpecies)
-                .join("g")
-                .attr("class", "legend-item")
-                .attr("transform", (d, i) => `translate(10, ${i * 30})`);
+          privateStreet.forEach(point => {
+            const [x, y] = projection(point.coords);
 
-            // Add color squares
-            legendGroup.append("rect")
-                .attr("width", 20)
-                .attr("height", 20)
-                .attr("fill", d => regScale(d));
+            privatemap.append("circle")
+              .attr("cx", x)
+              .attr("cy", y)
+              .attr("r", 5)
+              .attr("fill", "black");
 
-            // Add species labels
-            legendGroup.append("text")
-                .attr("x", 30)
-                .attr("y", 15)
-                .text(d => d)
-                .style("font-size", "14px")
-                .style("alignment-baseline", "middle");
+            privatemap.append("text")
+              .attr("x", x + 12) 
+              .attr("y", y)
+              .text(point.name)
+              .style("font-size", "12px")
+          });
+          //////////////////////
+          // start of public qCaretaker
+          publicmap.selectAll("path.neighborhood").data(counties.features)
+            .join("path")
+            .attr("class", "neighborhood")
+            .attr("d", path);
+          
+          const publicTrees = filteredTrees.filter(d => d.qCaretaker == "DPW");
+          publicmap.selectAll("circle").data(publicTrees)
+            .join("circle")
+            .attr("r", d => diameterScale(d.DBH))
+            .attr("fill", d => regScale(d.qSpecies))
+            .attr("opacity", 0.4)
+            .attr("cx", d => d.Position[0])
+            .attr("cy", d => d.Position[1]);
+          
+          publicmap.append("text")
+            .attr("x", mapAreaWidth / 2)  // Center horizontally
+            .attr("y", mapAreaHeight / 10) // Adjust vertical position
+            .attr("text-anchor", "middle") // Center align text
+            .attr("font-size", "18px")
+            .attr("font-weight", "bold")
+            .attr("fill", "black")
+            .text("Department of Public Works Maintained");
+          const publicStreet = [
+            { name: "Market Street", coords: [-122.40731, 37.78468] },
+            { name: "Sunset Boulevard", coords: [-122.4955, 37.7599] },
+
+          ];
+
+          publicStreet.forEach(point => {
+            const [x, y] = projection(point.coords);
+
+            publicmap.append("circle")
+              .attr("cx", x)
+              .attr("cy", y)
+              .attr("r", 5)
+              .attr("fill", "black");
+
+            publicmap.append("text")
+              .attr("x", x + 12) 
+              .attr("y", y)
+              .text(point.name)
+              .style("font-size", "12px")
+          });
+
+          //////////////////////
+          // start of legend stuff
+
+          const legend = d3.select("body")
+              .append("svg")
+              .attr("width", 500)
+              .attr("height", sortedSpecies.length * 30 + 40)
+              .attr("id", "legend")
+              .style("position", "absolute")
+              .style("left", "850px")
+              .style("top", "100px");
+
+          legend.append("text")
+              .attr("x", 10) 
+              .attr("y", 20) 
+              .attr("font-size", "16px")
+              .attr("font-weight", "bold")
+              .text("Tree Species");
+
+          const legendGroup = legend.selectAll(".legendbox")
+              .data(sortedSpecies)
+              .join("g")
+              .attr("class", "legendbox")
+              .attr("transform", (d, i) => `translate(10, ${i * 30+30})`);
+
+          legendGroup.append("rect")
+              .attr("width", 20)
+              .attr("height", 20)
+              .attr("fill", d => regScale(d));
+
+          legendGroup.append("text")
+              .attr("x", 30)
+              .attr("y", 15)
+              .text(d => d)
+              .style("font-size", "14px")
+              .style("alignment-baseline", "middle");
+      
+          //////////////////
+            
+          // start of bar chart stuff 
+          const barChart = d3.select("#barchart");
+          const barWidth = +barChart.attr("width");
+          const barHeight = +barChart.attr("height");
+          const barMargin = { top: 20, right: 20, bottom: 100, left: 200 };
+          const chartWidth = barWidth - barMargin.left - barMargin.right;
+          const chartHeight = barHeight - barMargin.top - barMargin.bottom;
+
+          const chartGroup = barChart.append("g")
+              .attr("transform", `translate(${barMargin.left}, ${barMargin.top})`);
+
+          // add counts to the dictionary
+          const topSpeciesData = Object.entries(speciesCounts)
+              .sort((a, b) => b[1] - a[1])
+              .slice(0, 4) 
+              .map(d => ({ species: d[0], count: d[1] })); 
+
+          const xScale = d3.scaleBand()
+              .domain(topSpeciesData.map(d => d.species))
+              .range([0, chartWidth])
+              .padding(0.2);
+
+          const yScale = d3.scaleLinear()
+              .domain([0, d3.max(topSpeciesData, d => d.count)])
+              .range([chartHeight, 0])
+              .nice();
+
+          chartGroup.selectAll(".bar")
+              .data(topSpeciesData)
+              .join("rect")
+              .attr("class", "bar")
+              .attr("x", d => xScale(d.species))
+              .attr("y", d => yScale(d.count))
+              .attr("width", 50)
+              .attr("height", d => chartHeight - yScale(d.count))
+              .attr("fill", d => regScale(d.species));
+
+          chartGroup.append("g")
+              .attr("transform", `translate(0, ${chartHeight})`)
+              .call(d3.axisBottom(xScale))
+              .selectAll("text")
+              .attr("transform", "rotate(-20)")
+              .style("text-anchor", "end");
+          
+              chartGroup.append("g").call(d3.axisLeft(yScale));
+
+          // bar chart label texts
+          barChart.append("text")
+              .attr("x", barWidth / 2 + 80)
+              .attr("y", barHeight - 10)
+              .attr("text-anchor", "middle")
+              .text("Tree Species");
+
+          barChart.append("text")
+              .attr("transform", "rotate(-90)")
+              .attr("x", -barHeight / 2)
+              .attr("y", 155)
+              .attr("text-anchor", "middle")
+              .text("Count of Trees");
         }
         requestChoropleth();
     </script>
+
 </body>
 </html>
